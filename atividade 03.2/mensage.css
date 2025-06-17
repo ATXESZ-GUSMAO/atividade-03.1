@@ -1,0 +1,16 @@
+.system-message {
+  color: #666;
+  font-style: italic;
+  text-align: center;
+  background-color: #f8f8f8 !important;
+}
+
+#user-list {
+  position: fixed;
+  right: 20px;
+  top: 100px;
+  background: white;
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}

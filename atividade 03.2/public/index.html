@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unifan Chat</title>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #121214;
+            color: #202024;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #chat {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 20px;
+            width: 100%;
+            max-width: 600px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        }
+        .logo {
+            display: block;
+            margin: 0 auto 15px auto;
+            max-width: 120px;
+            height: auto;
+        }
+        #messages {
+            list-style-type: none;
+            padding: 0;
+            margin-bottom: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        #messages li {
+            background-color: #f1f1f1;
+            color: #121214;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        #messages li.system-message {
+            background-color: transparent;
+            color: #666;
+            font-style: italic;
+            text-align: center;
+            padding: 5px;
+        }
+        #messages li.own-message {
+            background-color: #29327D;
+            color: white;
+        }
+        #form {
+            display: flex;
+            gap: 10px;
+        }
+        #message {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #fff;
+            color: #121214;
+            font-size: 16px;
+        }
+        button {
+            background-color: #29327D;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #1e2560;
+        }
+        h1 {
+            text-align: center;
+            color: #29327D;
+            margin-bottom: 20px;
+        }
+        #user-list {
+            position: fixed;
+            right: 20px;
+            top: 100px;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        #user-list h3 {
+            margin-top: 0;
+            color: #29327D;
+        }
+        #user-list ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        #messages::-webkit-scrollbar {
+            width: 8px;
+        }
+        #messages::-webkit-scrollbar-track {
+            background: #ffffff;
+        }
+        #messages::-webkit-scrollbar-thumb {
+            background-color: #29327D;
+            border-radius: 10px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="chat">
+        <img src="https://unifan.net.br/tutorial-app/assets/imgs/unifan_logo.png" alt="Logo UNIFAN" class="logo">
+        <h1>Bem-vindo ao FanChat</h1>
+        
+        <div id="user-list" class="hidden">
+            <h3>Usuários online</h3>
+            <ul id="users"></ul>
+        </div>
+        
+        <ul id="messages"></ul>
+        <form id="form" class="hidden">
+            <input id="message" autocomplete="off" placeholder="Digite sua mensagem..." />
+            <button type="submit">Enviar</button>
+        </form>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io('http://localhost:3001');
+        let username = '';
+        
+        // Elementos da interface
+        const form = document.getElementById('form');
+        const messageInput = document.getElementById('message');
+        const messages = document.getElementById('messages');
+        const userList = document.getElementById('user-list');
+        const usersList = document.getElementById('users');
+        
+        // Função para validar o nome de usuário
+        function validateUsername() {
+            username = prompt('Digite seu nome de usuário:') || '';
+            
+            socket.emit('validate_username', username, (response) => {
+                if (response.valid) {
+                    // Mostra o chat após validação
+                    form.classList.remove('hidden');
+                    userList.classList.remove('hidden');
+                    
+                    // Adiciona mensagem de boas-vindas
+                    addSystemMessage(response.message);
+                } else {
+                    alert(response.message);
+                    validateUsername(); // Tenta novamente
+                }
+            });
+        }
+        
+        // Função para adicionar mensagem do sistema
+        function addSystemMessage(message) {
+            const item = document.createElement('li');
+            item.className = 'system-message';
+            item.textContent = message;
+            messages.appendChild(item);
+            messages.scrollTop = messages.scrollHeight;
+        }
+        
+        // Evento de envio de mensagem
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (messageInput.value) {
+                const messageData = {
+                    username: username,
+                    message: messageInput.value
+                };
+                socket.emit('chat message', messageData);
+                messageInput.value = '';
+            }
+        });
+        
+        // Recebe mensagens do chat
+        socket.on('chat message', function(data) {
+            const item = document.createElement('li');
+            if (data.username === username) {
+                item.classList.add('own-message');
+            }
+            item.innerHTML = `<strong>${data.username}</strong>: ${data.message}`;
+            messages.appendChild(item);
+            messages.scrollTop = messages.scrollHeight;
+        });
+        
+        // Atualiza lista de usuários
+        socket.on('user list', (users) => {
+            usersList.innerHTML = users.map(user => 
+                `<li>${user} ${user === username ? '(você)' : ''}</li>`
+            ).join('');
+        });
+        
+        // Notificações de usuários
+        socket.on('user joined', (username) => {
+            addSystemMessage(`${username} entrou no chat`);
+        });
+        
+        socket.on('user left', (username) => {
+            addSystemMessage(`${username} saiu do chat`);
+        });
+        
+        // Inicia a validação do nome de usuário
+        validateUsername();
+    </script>
+</body>
+</html>
